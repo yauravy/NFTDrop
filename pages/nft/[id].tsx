@@ -1,8 +1,15 @@
 import React from 'react'
-import { useAddress, useDisconnect, useMetamask } from "@thirdweb-dev/react";
+import { useAddress, useDisconnect, useMetamask } from "@thirdweb-dev/react"; 
+import { GetServerSideProps } from "next"
+import { sanityClient, urlFor } from '../../sanity'
+import { Collection } from "../../typings"
+import Link from "next/link"
 
+interface Props {
+    collection: Collection
+}
 
-function NFTDropPage() {
+function NFTDropPage({collection}: Props) {
     //Auth
     const connectWithMetamask = useMetamask();
     const address = useAddress();
@@ -16,17 +23,13 @@ function NFTDropPage() {
                 <div className="rounded-xl bg-gradient-to-br from-purple-400 to-yellow-400 p-2">
                     <img 
                         className="w-44 rounded-xl object-cover lg:h-96 lg:w-72"
-                        src="https://links.papareact.com/8sg" 
+                        src="https://links.papareact.com/8sg" //{urlFor(collection.previewImage).url()}
                         alt="" 
                     />
                 </div>
                 <div className="space-y-2 p-5 text-center ">
-                    <h1 className="text-4xl font-bold text-white">
-                        SECRET APES
-                    </h1>
-                    <h2 className="text-xl text-gray-300">
-                        A Collection Of Secret Devs
-                    </h2>
+                    <h1 className="text-4xl font-bold text-white">{collection.nftCollectionName}</h1>
+                    <h2 className="text-xl text-gray-300">{collection.description}</h2>
                 </div>
             </div>
         </div>
@@ -35,11 +38,13 @@ function NFTDropPage() {
         <div className="flex flex-1 flex-col p-12 lg:col-span-6">
             {/* Header */}
             <header className="flex items-center justify-between">
-                <h1 className="w-52 cursor-pointer text-xl font-extralight sm:w-80">
-                    The{' '} 
-                    <span className="font-extrabold underline decoration-red-500/50">Secret</span>{' '}
-                    Devs NFT
-                </h1>
+                <Link href={'/'}>
+                    <h1 className="w-52 cursor-pointer text-xl font-extralight sm:w-80">
+                        The{' '} 
+                        <span className="font-extrabold underline decoration-red-500/50">Secret</span>{' '}
+                        Devs NFT
+                    </h1>
+                </Link>
                 <button 
                     onClick={() => address ? disconnect() : connectWithMetamask()}
                     className="rounded-full bg-orange-500 
@@ -60,11 +65,11 @@ function NFTDropPage() {
             <div className="mt-10 flex flex-1 flex-col items-center space-y-6 text-center lg:space-y-0 lg:justify-center">
                 <img 
                   className="w-80 object-cover pb-10 lg:h-40" 
-                  src="https://links.papareact.com/bdy" 
+                  src={urlFor(collection.mainImage).url()} 
                   alt="" 
                 />
 
-                <h1 className="text-3xl font-bold lg:text-5xl lg:font-extrabold">The Secret Club Devs</h1>
+                <h1 className="text-3xl font-bold lg:text-5xl lg:font-extrabold">{collection.title}</h1>
 
                 <p className="pt-2 text-xl text-green-500">11 / 3300 NFT's claimed</p>
             </div>
@@ -83,3 +88,48 @@ function NFTDropPage() {
 }
 
 export default NFTDropPage
+
+export const getServerSideProps: GetServerSideProps = async ({params}) => {
+    const query = `
+    *[_type == "collection" && slug.current == $id][0]{
+        _id,
+        title,
+        address,
+        description,
+        nftCollectionName,
+        mainImage {
+        asset
+      },
+      circleImage {
+        asset
+      },
+      slug {
+        current
+      },
+      creator -> {
+            _id,
+            name,
+            address,
+            slug {
+              current
+          },
+      },
+      }
+    `
+
+    const collection = await sanityClient.fetch(query, {
+        id: params?.id
+    })
+
+    if(!collection) {
+        return {
+            notFound: true
+        }
+    }
+
+    return {
+        props: {
+            collection
+        }
+    }
+}
